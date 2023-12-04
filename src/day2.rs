@@ -20,6 +20,19 @@ impl Game {
             .all(|set| set.red <= red && set.blue <= blue && set.green <= green)
     }
 
+    fn power(&self) -> u32 {
+        let red_max = self.sets.clone().into_iter().map(|s| s.red).max().unwrap();
+        let blue_max = self.sets.clone().into_iter().map(|s| s.blue).max().unwrap();
+        let green_max = self
+            .sets
+            .clone()
+            .into_iter()
+            .map(|s| s.green)
+            .max()
+            .unwrap();
+        red_max * blue_max * green_max
+    }
+
     fn from_line(line: String) -> Game {
         let id = line
             .split(":")
@@ -85,8 +98,20 @@ fn part1(reader: BufReader<File>) {
     println!("Part 1: {:?}", sum_of_ids);
 }
 
+fn part2(reader: BufReader<File>) {
+    let games = reader
+        .lines()
+        .into_iter()
+        .map(|l| Game::from_line(l.unwrap()));
+    let power: u32 = games.map(|g| g.power()).sum();
+    println!("Part 2: {:?}", power);
+}
+
 pub fn solve() {
     println!("Day 2 solutions:");
     let reader = file_utils::input_reader(INPUT_FILE_PATH);
     part1(reader);
+
+    let reader = file_utils::input_reader(INPUT_FILE_PATH);
+    part2(reader);
 }
