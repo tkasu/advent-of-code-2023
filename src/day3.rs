@@ -62,6 +62,17 @@ fn parse_line(line: String) -> Vec<Visual> {
 }
 
 fn part1(reader: BufReader<File>) {
+    fn flush_state(numbers: &mut Vec<usize>, num_string: &mut String, adjacent_flag: &mut bool) {
+        if !num_string.is_empty() {
+            if *adjacent_flag {
+                let part_number: usize = num_string.parse().unwrap();
+                numbers.push(part_number);
+            }
+            *adjacent_flag = false;
+            *num_string = String::from("");
+        }
+    }
+
     let schemantic: Vec<Vec<Visual>> = reader
         .lines()
         .map(|line| parse_line(line.unwrap()))
@@ -69,39 +80,27 @@ fn part1(reader: BufReader<File>) {
     let engine = Engine { schemantic };
 
     let mut part_numbers: Vec<usize> = vec![];
-    let mut cur_num_parts = String::from("");
+    let mut cur_num_string = String::from("");
     let mut has_adjacent = false;
     for (y, vs) in engine.schemantic.iter().enumerate() {
-        if !cur_num_parts.is_empty() {
-            if has_adjacent {
-                let part_number: usize = cur_num_parts.parse().unwrap();
-                part_numbers.push(part_number);
-            }
-            has_adjacent = false;
-            cur_num_parts = String::from("");
-        }
+        flush_state(&mut part_numbers, &mut cur_num_string, &mut has_adjacent);
         for (x, v) in vs.iter().enumerate() {
             match v {
                 Visual::NumPart(num) => {
                     let num_c = char::from_digit(num.clone().try_into().unwrap(), 10).unwrap();
-                    cur_num_parts.push(num_c);
+                    cur_num_string.push(num_c);
                     if has_adjacent || engine.has_adjacent_symbol(x, y) {
                         has_adjacent = true;
                     }
                 }
                 _ => {
-                    if !cur_num_parts.is_empty() {
-                        if has_adjacent {
-                            let part_number: usize = cur_num_parts.parse().unwrap();
-                            part_numbers.push(part_number);
-                        }
-                        has_adjacent = false;
-                        cur_num_parts = String::from("");
-                    }
+                    flush_state(&mut part_numbers, &mut cur_num_string, &mut has_adjacent);
                 }
             }
         }
     }
+    flush_state(&mut part_numbers, &mut cur_num_string, &mut has_adjacent);
+
     let part_numbers_sum: usize = part_numbers.into_iter().sum();
     println!("Part1: {:?}", part_numbers_sum)
 }
