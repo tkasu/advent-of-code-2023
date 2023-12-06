@@ -8,6 +8,7 @@ const INPUT_FILE_PATH: &'static str = "input/day4.txt";
 
 #[derive(Debug)]
 struct Cards {
+    #[allow(dead_code)]
     id: usize,
     numbers: Vec<usize>,
     winning_numbers: Vec<usize>,
