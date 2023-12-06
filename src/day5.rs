@@ -3,12 +3,14 @@ use crate::file_utils;
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 
+use rayon::prelude::*;
+
 //const INPUT_FILE_PATH: &'static str = "input/day5_sample.txt";
 const INPUT_FILE_PATH: &'static str = "input/day5.txt";
 
 #[derive(Debug)]
 struct Garden {
-    seeds: Vec<u64>,
+    seed_input: Vec<u64>,
     seed_to_soil: LocMap,
     soil_to_fertilizer: LocMap,
     fertilizer_to_water: LocMap,
@@ -20,11 +22,29 @@ struct Garden {
 
 impl Garden {
     fn seed_dest_locs(&self) -> Vec<u64> {
-        self.seeds
+        self.seed_input
             .clone()
             .into_iter()
             .map(|seed| self.dest_loc(seed))
             .collect()
+    }
+
+    fn seed_range_min_loc(&self) -> u64 {
+        let pairs: Vec<&[u64]> = self.seed_input.chunks(2).collect();
+        let min_loc: u64 = pairs
+            .into_iter()
+            .map(|pair| {
+                println!("Starting pair: {:?}", pair);
+                let range_start = *pair.first().unwrap();
+                let range_end = range_start + pair.last().unwrap();
+                let range: Vec<u64> = (range_start..range_end).collect();
+                let range_min = range.par_iter().map(| i| self.dest_loc(*i)).min().unwrap();
+                println!("Pair {:?} done, local_min: {}", pair, range_min);
+                range_min
+            })
+            .min()
+            .unwrap();
+        min_loc
     }
 
     fn dest_loc(&self, seed: u64) -> u64 {
@@ -94,7 +114,7 @@ impl Garden {
         let humidity_to_location = LocMap::from_lines(humidity_to_location_lines);
 
         Self {
-            seeds: seeds.clone(),
+            seed_input: seeds.clone(),
             seed_to_soil,
             soil_to_fertilizer,
             fertilizer_to_water,
@@ -173,8 +193,17 @@ fn part1(reader: BufReader<File>) {
     println!("Part 1: {:?}", lowest_loc);
 }
 
+fn part2(reader: BufReader<File>) {
+    let garden = Garden::from_reader(reader);
+    let loweset_loc = garden.seed_range_min_loc();
+    println!("Part 2: {:?}", loweset_loc);
+}
+
 pub fn solve() {
     println!("Day 5 solutions:");
     let reader = file_utils::input_reader(INPUT_FILE_PATH);
     part1(reader);
+
+    let reader = file_utils::input_reader(INPUT_FILE_PATH);
+    part2(reader);
 }
