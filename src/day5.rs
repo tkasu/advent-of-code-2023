@@ -30,15 +30,18 @@ impl Garden {
     }
 
     fn seed_range_min_loc(&self) -> u64 {
+        println!(
+            "Starting part2 calculations (consider using release build if you are not already)."
+        );
         let pairs: Vec<&[u64]> = self.seed_input.chunks(2).collect();
         let min_loc: u64 = pairs
-            .into_iter()
+            .par_iter()
             .map(|pair| {
                 println!("Starting pair: {:?}", pair);
                 let range_start = *pair.first().unwrap();
                 let range_end = range_start + pair.last().unwrap();
                 let range: Vec<u64> = (range_start..range_end).collect();
-                let range_min = range.par_iter().map(| i| self.dest_loc(*i)).min().unwrap();
+                let range_min = range.par_iter().map(|i| self.dest_loc(*i)).min().unwrap();
                 println!("Pair {:?} done, local_min: {}", pair, range_min);
                 range_min
             })
