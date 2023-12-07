@@ -1,7 +1,9 @@
 use crate::file_utils;
 
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
+use std::ops::Bound::{Excluded, Included};
 
 use rayon::prelude::*;
 
@@ -132,10 +134,28 @@ impl Garden {
 #[derive(Debug)]
 struct LocMap {
     components: Vec<LocMapComponent>,
+    comp_range_map: BTreeMap<u64, LocMapComponent>,
 }
 
 impl LocMap {
+    fn new(components: Vec<LocMapComponent>) -> Self {
+        let range_map = Self::build_range_map(&components);
+        Self {
+            components,
+            comp_range_map: range_map,
+        }
+    }
+
     fn next_loc(&self, cur: u64) -> u64 {
+        let comp_ref = &self.comp_range_map;
+        comp_ref
+            .range(cur..)
+            .next()
+            .map(|(_, cmp)| cmp.next_loc(cur).unwrap_or(cur))
+            .unwrap_or(cur)
+    }
+
+    fn next_loc_old(&self, cur: u64) -> u64 {
         let comp_ref = &self.components;
         comp_ref
             .into_iter()
@@ -148,7 +168,15 @@ impl LocMap {
             .into_iter()
             .map(|s| LocMapComponent::from_string(s))
             .collect();
-        Self { components }
+        Self::new(components)
+    }
+
+    fn build_range_map(components: &Vec<LocMapComponent>) -> BTreeMap<u64, LocMapComponent> {
+        let mut range_map: BTreeMap<u64, LocMapComponent> = BTreeMap::new();
+        for comp in components {
+            range_map.insert(comp.to, *comp);
+        }
+        range_map
     }
 }
 
