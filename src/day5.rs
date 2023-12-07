@@ -35,7 +35,7 @@ impl Garden {
         );
         let pairs: Vec<&[u64]> = self.seed_input.chunks(2).collect();
         let min_loc: u64 = pairs
-            .par_iter()
+            .iter()
             .map(|pair| {
                 println!("Starting pair: {:?}", pair);
                 let range_start = *pair.first().unwrap();
@@ -136,8 +136,8 @@ struct LocMap {
 
 impl LocMap {
     fn next_loc(&self, cur: u64) -> u64 {
-        self.components
-            .clone()
+        let comp_ref = &self.components;
+        comp_ref
             .into_iter()
             .find_map(|map_comp| map_comp.next_loc(cur))
             .unwrap_or(cur)
