@@ -139,15 +139,19 @@ impl LocMap {
         let comp_ref = &self.components;
         comp_ref
             .into_iter()
-            .find_map(|map_comp| map_comp.next_loc(cur))
+            .find(|map_comp| cur >= map_comp.from)
+            .map(|map_comp| map_comp.next_loc(cur).unwrap_or(cur))
             .unwrap_or(cur)
     }
 
     fn from_lines(lines: Vec<String>) -> Self {
-        let components: Vec<LocMapComponent> = lines
+        let mut components: Vec<LocMapComponent> = lines
             .into_iter()
             .map(|s| LocMapComponent::from_string(s))
             .collect();
+
+        // sort desceding order by from
+        components.sort_by(|a, b| b.from.cmp(&a.from));
         Self { components }
     }
 }
