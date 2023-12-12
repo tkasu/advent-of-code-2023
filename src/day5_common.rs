@@ -1,27 +1,22 @@
-use crate::file_utils;
-
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 
 use rayon::prelude::*;
 
-//const INPUT_FILE_PATH: &'static str = "input/day5_sample.txt";
-const INPUT_FILE_PATH: &'static str = "input/day5.txt";
-
 #[derive(Debug)]
-struct Garden {
-    seed_input: Vec<u64>,
-    seed_to_soil: LocMap,
-    soil_to_fertilizer: LocMap,
-    fertilizer_to_water: LocMap,
-    water_to_light: LocMap,
-    light_to_temperature: LocMap,
-    temperature_to_humidity: LocMap,
-    humidity_to_location: LocMap,
+pub struct Garden {
+    pub seed_input: Vec<u64>,
+    pub seed_to_soil: LocMap,
+    pub soil_to_fertilizer: LocMap,
+    pub fertilizer_to_water: LocMap,
+    pub water_to_light: LocMap,
+    pub light_to_temperature: LocMap,
+    pub temperature_to_humidity: LocMap,
+    pub humidity_to_location: LocMap,
 }
 
 impl Garden {
-    fn seed_dest_locs(&self) -> Vec<u64> {
+    pub fn seed_dest_locs(&self) -> Vec<u64> {
         self.seed_input
             .clone()
             .into_iter()
@@ -29,7 +24,7 @@ impl Garden {
             .collect()
     }
 
-    fn seed_range_min_loc(&self) -> u64 {
+    pub fn seed_range_min_loc(&self) -> u64 {
         println!(
             "Starting part2 calculations (consider using release build if you are not already)."
         );
@@ -86,7 +81,7 @@ impl Garden {
         map_lines.to_vec()
     }
 
-    fn from_reader(reader: BufReader<File>) -> Self {
+    pub fn from_reader(reader: BufReader<File>) -> Self {
         let lines: Vec<String> = reader.lines().map(|l| l.unwrap()).collect();
 
         let seeds: &Vec<u64> = &lines
@@ -130,8 +125,8 @@ impl Garden {
 }
 
 #[derive(Debug)]
-struct LocMap {
-    components: Vec<LocMapComponent>,
+pub struct LocMap {
+    pub components: Vec<LocMapComponent>,
 }
 
 impl LocMap {
@@ -157,10 +152,10 @@ impl LocMap {
 }
 
 #[derive(Copy, Clone, Debug)]
-struct LocMapComponent {
-    from: u64,
-    to: u64,
-    offset: i64,
+pub struct LocMapComponent {
+    pub from: u64,
+    pub to: u64,
+    pub offset: i64,
 }
 
 impl LocMapComponent {
@@ -191,26 +186,4 @@ impl LocMapComponent {
         let offset: i64 = (dest_range_start as i64) - (source_range_start as i64);
         Self { from, to, offset }
     }
-}
-
-fn part1(reader: BufReader<File>) {
-    let garden = Garden::from_reader(reader);
-    let seed_dest_locs = garden.seed_dest_locs();
-    let lowest_loc = seed_dest_locs.into_iter().min().unwrap();
-    println!("Part 1: {:?}", lowest_loc);
-}
-
-fn part2(reader: BufReader<File>) {
-    let garden = Garden::from_reader(reader);
-    let loweset_loc = garden.seed_range_min_loc();
-    println!("Part 2: {:?}", loweset_loc);
-}
-
-pub fn solve() {
-    println!("Day 5 solutions:");
-    let reader = file_utils::input_reader(INPUT_FILE_PATH);
-    part1(reader);
-
-    let reader = file_utils::input_reader(INPUT_FILE_PATH);
-    part2(reader);
 }
