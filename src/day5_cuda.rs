@@ -1,7 +1,8 @@
 use crate::day5_common::{Garden, LocMap};
 use crate::file_utils;
 
-use cudarc::driver::{DeviceRepr, LaunchAsync, LaunchConfig};
+use cudarc::driver::sys::CUdeviceptr;
+use cudarc::driver::{DevicePtr, DeviceRepr, LaunchAsync, LaunchConfig};
 use cudarc::nvrtc::Ptx;
 use std::cmp::min;
 use std::time::Instant;
@@ -10,32 +11,42 @@ use std::time::Instant;
 const INPUT_FILE_PATH: &'static str = "input/day5.txt";
 
 #[repr(C)]
-struct LocMapComponentC {
+#[derive(Clone)]
+struct LocMapComponentDevice {
     from: u32,
     to: u32,
     offset: i32,
 }
 
-unsafe impl DeviceRepr for LocMapComponentC {}
+unsafe impl DeviceRepr for LocMapComponentDevice {}
 
 #[repr(C)]
-struct LocMapSizes {
-    seed_to_soil: u32,
-    soil_to_fertilizer: u32,
-    fertilizer_to_water: u32,
-    water_to_light: u32,
-    light_to_temperature: u32,
-    temperature_to_humidity: u32,
-    humidity_to_location: u32,
+struct GardenDevice {
+    seed_input: CUdeviceptr, // pointer of Vec<u32>
+    seed_input_size: u32,
+    seed_to_soil: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    seed_to_soil_size: u32,
+    soil_to_fertilizer: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    soil_to_fertilizer_size: u32,
+    fertilizer_to_water: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    fertilizer_to_water_size: u32,
+    water_to_light: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    water_to_light_size: u32,
+    light_to_temperature: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    light_to_temperature_size: u32,
+    temperature_to_humidity: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    temperature_to_humidity_size: u32,
+    humidity_to_location: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    humidity_to_location_size: u32,
 }
 
-unsafe impl DeviceRepr for LocMapSizes {}
+unsafe impl DeviceRepr for GardenDevice {}
 
-fn locmap_to_c_repr(locmap: LocMap) -> Vec<LocMapComponentC> {
+fn locmap_to_c_repr(locmap: LocMap) -> Vec<LocMapComponentDevice> {
     locmap
         .components
         .iter()
-        .map(|x| LocMapComponentC {
+        .map(|x| LocMapComponentDevice {
             from: x.from as u32,
             to: x.to as u32,
             offset: x.offset as i32,
@@ -72,26 +83,35 @@ pub fn solve() {
     let temperature_to_humidity = locmap_to_c_repr(garden.temperature_to_humidity);
     let humidity_to_location = locmap_to_c_repr(garden.humidity_to_location);
 
-    let sizes = LocMapSizes {
-        seed_to_soil: seed_to_soil.len() as u32,
-        soil_to_fertilizer: soil_to_fertilizer.len() as u32,
-        fertilizer_to_water: fertilizer_to_water.len() as u32,
-        water_to_light: water_to_light.len() as u32,
-        light_to_temperature: light_to_temperature.len() as u32,
-        temperature_to_humidity: temperature_to_humidity.len() as u32,
-        humidity_to_location: humidity_to_location.len() as u32,
-    };
-
     let out_local_mins = vec![u32::MAX; batches.try_into().unwrap()];
 
-    let d_seed_input = dev.htod_copy(seed_input).unwrap();
-    let d_seed_to_soil_input = dev.htod_copy(seed_to_soil).unwrap();
-    let d_soil_to_fertilizer_input = dev.htod_copy(soil_to_fertilizer).unwrap();
-    let d_fertilizer_to_water_input = dev.htod_copy(fertilizer_to_water).unwrap();
-    let d_water_to_light_input = dev.htod_copy(water_to_light).unwrap();
-    let d_light_to_temperature_input = dev.htod_copy(light_to_temperature).unwrap();
-    let d_temperature_to_humidity_input = dev.htod_copy(temperature_to_humidity).unwrap();
-    let d_humidity_to_location_input = dev.htod_copy(humidity_to_location).unwrap();
+    let d_seed_input = dev.htod_copy(seed_input.clone()).unwrap();
+    let d_seed_to_soil_input = dev.htod_copy(seed_to_soil.clone()).unwrap();
+    let d_soil_to_fertilizer_input = dev.htod_copy(soil_to_fertilizer.clone()).unwrap();
+    let d_fertilizer_to_water_input = dev.htod_copy(fertilizer_to_water.clone()).unwrap();
+    let d_water_to_light_input = dev.htod_copy(water_to_light.clone()).unwrap();
+    let d_light_to_temperature_input = dev.htod_copy(light_to_temperature.clone()).unwrap();
+    let d_temperature_to_humidity_input = dev.htod_copy(temperature_to_humidity.clone()).unwrap();
+    let d_humidity_to_location_input = dev.htod_copy(humidity_to_location.clone()).unwrap();
+
+    let d_garden = GardenDevice {
+        seed_input: *d_seed_input.device_ptr(),
+        seed_input_size: seed_input.len() as u32,
+        seed_to_soil: *d_seed_to_soil_input.device_ptr(),
+        seed_to_soil_size: seed_to_soil.len() as u32,
+        soil_to_fertilizer: *d_soil_to_fertilizer_input.device_ptr(),
+        soil_to_fertilizer_size: soil_to_fertilizer.len() as u32,
+        fertilizer_to_water: *d_fertilizer_to_water_input.device_ptr(),
+        fertilizer_to_water_size: fertilizer_to_water.len() as u32,
+        water_to_light: *d_water_to_light_input.device_ptr(),
+        water_to_light_size: water_to_light.len() as u32,
+        light_to_temperature: *d_light_to_temperature_input.device_ptr(),
+        light_to_temperature_size: light_to_temperature.len() as u32,
+        temperature_to_humidity: *d_temperature_to_humidity_input.device_ptr(),
+        temperature_to_humidity_size: temperature_to_humidity.len() as u32,
+        humidity_to_location: *d_humidity_to_location_input.device_ptr(),
+        humidity_to_location_size: humidity_to_location.len() as u32,
+    };
 
     let mut d_out_local_mins = dev.htod_copy(out_local_mins).unwrap();
 
@@ -105,26 +125,8 @@ pub fn solve() {
     let cfg = LaunchConfig::for_num_elems(batches.try_into().unwrap());
 
     let start = Instant::now();
-    unsafe {
-        calc_dest_min_kernel.launch(
-            cfg,
-            (
-                &mut d_out_local_mins,
-                &d_seed_input,
-                &d_seed_to_soil_input,
-                &d_soil_to_fertilizer_input,
-                &d_fertilizer_to_water_input,
-                &d_water_to_light_input,
-                &d_light_to_temperature_input,
-                &d_temperature_to_humidity_input,
-                &d_humidity_to_location_input,
-                sizes,
-                batch_size,
-                n,
-            ),
-        )
-    }
-    .unwrap();
+    unsafe { calc_dest_min_kernel.launch(cfg, (&mut d_out_local_mins, d_garden, batch_size, n)) }
+        .unwrap();
 
     let min = dev
         .dtoh_sync_copy(&d_out_local_mins)
@@ -132,6 +134,7 @@ pub fn solve() {
         .into_iter()
         .min()
         .unwrap();
+
     println!(
         "CUDA calculation and copy back to host took: {:?}",
         start.elapsed()
