@@ -11,9 +11,9 @@ const INPUT_FILE_PATH: &'static str = "input/day5.txt";
 
 #[repr(C)]
 struct LocMapComponentC {
-    from: u64,
-    to: u64,
-    offset: i64,
+    from: u32,
+    to: u32,
+    offset: i32,
 }
 
 unsafe impl DeviceRepr for LocMapComponentC {}
@@ -36,9 +36,9 @@ fn locmap_to_c_repr(locmap: LocMap) -> Vec<LocMapComponentC> {
         .components
         .iter()
         .map(|x| LocMapComponentC {
-            from: x.from as u64,
-            to: x.to as u64,
-            offset: x.offset as i64,
+            from: x.from as u32,
+            to: x.to as u32,
+            offset: x.offset as i32,
         })
         .collect()
 }
@@ -51,13 +51,13 @@ pub fn solve() {
 
     let dev = cudarc::driver::CudaDevice::new(0).unwrap();
 
-    let seed_input: Vec<u64> = garden.seed_input;
-    let mut n: u64 = 0;
+    let seed_input: Vec<u32> = garden.seed_input.into_iter().map(|i| i as u32).collect();
+    let mut n: u32 = 0;
     for i in (0..seed_input.len()).step_by(2) {
         n += seed_input[i + 1]
     }
     let batches: u32 = min(960000, n / 10).try_into().unwrap();
-    let batch_size: u32 = (n / batches as u64).try_into().unwrap();
+    let batch_size: u32 = (n / batches as u32).try_into().unwrap();
 
     println!(
         "n: {:?}, batches: {:?}, batch_size: {:?}",
@@ -82,7 +82,7 @@ pub fn solve() {
         humidity_to_location: humidity_to_location.len() as u32,
     };
 
-    let out_local_mins = vec![u64::MAX; batches.try_into().unwrap()];
+    let out_local_mins = vec![u32::MAX; batches.try_into().unwrap()];
 
     let d_seed_input = dev.htod_copy(seed_input).unwrap();
     let d_seed_to_soil_input = dev.htod_copy(seed_to_soil).unwrap();

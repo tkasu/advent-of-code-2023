@@ -1,7 +1,7 @@
 struct LocMapComponentC {
-    unsigned long from;
-    unsigned long to;
-    long offset;
+    unsigned int from;
+    unsigned int to;
+    int offset;
 };
 
 struct LocMapSizes {
@@ -15,13 +15,13 @@ struct LocMapSizes {
 };
 
 __device__
-unsigned long get_seed(const unsigned long *seed_input, unsigned long i) {
+unsigned int get_seed(const unsigned int *seed_input, unsigned int i) {
     int seed_input_idx = 0;
-    unsigned long seeds_seen = 0;
+    unsigned int seeds_seen = 0;
     while (true) {
-        unsigned long range_len = seed_input[seed_input_idx + 1];
+        unsigned int range_len = seed_input[seed_input_idx + 1];
         if (i < seeds_seen + range_len) {
-            unsigned long seed = seed_input[seed_input_idx] + i - seeds_seen;
+            unsigned int seed = seed_input[seed_input_idx] + i - seeds_seen;
             return seed;
         }
         seed_input_idx += 2;
@@ -30,12 +30,12 @@ unsigned long get_seed(const unsigned long *seed_input, unsigned long i) {
 }
 
 __device__
-unsigned long get_next_loc(
-    const unsigned long seed,
+unsigned int get_next_loc(
+    const unsigned int seed,
     const LocMapComponentC *loc_arr,
     const int arr_size
 ) {
-    unsigned long next_loc = seed;
+    unsigned int next_loc = seed;
     for (int loc_idx = 0; loc_idx < arr_size; loc_idx++) {
         LocMapComponentC loc = loc_arr[loc_idx];
         if (seed >= loc.from) {
@@ -49,8 +49,8 @@ unsigned long get_next_loc(
 }
 
 extern "C" __global__ void calc_dest_min(
-    unsigned long *local_mins,
-    const unsigned long *seed_input,
+    unsigned int *local_mins,
+    const unsigned int *seed_input,
     // maps beg
     // seed to soil
     const LocMapComponentC *seed_to_soil,
@@ -62,18 +62,18 @@ extern "C" __global__ void calc_dest_min(
     const LocMapComponentC *humidity_to_location,
     const LocMapSizes loc_map_sizes,
     const int batch_size,
-    const unsigned long n
+    const unsigned int n
 ) {
     int batch_idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    unsigned long min_loc = ULONG_MAX;
+    unsigned int min_loc = UINT_MAX;
     for (int i = 0; i < batch_size; i++) {
-        unsigned long seed_idx = i + batch_idx * batch_size;
+        unsigned int seed_idx = i + batch_idx * batch_size;
         if (seed_idx >= n) {
             return;
         }
-        unsigned long seed = get_seed(seed_input, seed_idx);
-        unsigned long next_loc = seed;
+        unsigned int seed = get_seed(seed_input, seed_idx);
+        unsigned int next_loc = seed;
 
         next_loc = get_next_loc(next_loc, seed_to_soil, loc_map_sizes.seed_to_soil);
         next_loc = get_next_loc(next_loc, soil_to_fertilizer, loc_map_sizes.soil_to_fertilizer);
