@@ -68,6 +68,8 @@ extern "C" __global__ void calc_dest_min(
 ) {
     int batch_idx = blockIdx.x * blockDim.x + threadIdx.x;
 
+    extern __shared__ unsigned int block_mins[];
+
     unsigned int min_loc = UINT_MAX;
     for (int i = 0; i < batch_size; i++) {
         unsigned int seed_idx = i + batch_idx * batch_size;
@@ -85,7 +87,17 @@ extern "C" __global__ void calc_dest_min(
         next_loc = get_next_loc(next_loc, garden.temperature_to_humidity, garden.temperature_to_humidity_size);
         next_loc = get_next_loc(next_loc, garden.humidity_to_location, garden.humidity_to_location_size);
         min_loc = min(min_loc, next_loc);
-
     }
-    local_mins[batch_idx] = min_loc;
+
+    block_mins[threadIdx.x] = min_loc;
+
+    __syncthreads();
+    unsigned int block_min = UINT_MAX;
+    if (threadIdx.x == 0) {
+        for (int i = 0; i < blockDim.x; i++) {
+            block_min = min(block_min, block_mins[i]);
+        }
+        local_mins[blockIdx.x] = block_min;
+    }
+
 }

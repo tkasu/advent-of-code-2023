@@ -67,12 +67,19 @@ pub fn solve() {
     for i in (0..seed_input.len()).step_by(2) {
         n += seed_input[i + 1]
     }
-    let batches: u32 = min(960000, n / 10).try_into().unwrap();
+    let batches: u32 = min(96_000_000, n).try_into().unwrap();
     let batch_size: u32 = (n / batches as u32).try_into().unwrap();
 
+    let cfg = LaunchConfig::for_num_elems(batches.try_into().unwrap());
+    let cfg = LaunchConfig {
+        grid_dim: cfg.grid_dim,
+        block_dim: cfg.block_dim,
+        shared_mem_bytes: cfg.block_dim.0 * 4, // one u32 for each thread in the block
+    };
+
     println!(
-        "n: {:?}, batches: {:?}, batch_size: {:?}",
-        n, batches, batch_size
+        "n: {:?}, batches: {:?}, batch_size: {:?}, cuda config: {:?}",
+        n, batches, batch_size, &cfg
     );
 
     let seed_to_soil = locmap_to_c_repr(garden.seed_to_soil);
@@ -83,7 +90,7 @@ pub fn solve() {
     let temperature_to_humidity = locmap_to_c_repr(garden.temperature_to_humidity);
     let humidity_to_location = locmap_to_c_repr(garden.humidity_to_location);
 
-    let out_local_mins = vec![u32::MAX; batches.try_into().unwrap()];
+    let out_local_mins = vec![u32::MAX; cfg.grid_dim.0.try_into().unwrap()];
 
     let d_seed_input = dev.htod_copy(seed_input.clone()).unwrap();
     let d_seed_to_soil_input = dev.htod_copy(seed_to_soil.clone()).unwrap();
@@ -122,7 +129,6 @@ pub fn solve() {
     )
     .unwrap();
     let calc_dest_min_kernel = dev.get_func("aoc", "calc_dest_min").unwrap();
-    let cfg = LaunchConfig::for_num_elems(batches.try_into().unwrap());
 
     let start = Instant::now();
     unsafe { calc_dest_min_kernel.launch(cfg, (&mut d_out_local_mins, d_garden, batch_size, n)) }
