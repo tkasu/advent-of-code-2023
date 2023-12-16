@@ -1,8 +1,8 @@
 use crate::day5_common::{Garden, LocMap};
 use crate::file_utils;
 
+use cudarc::driver::{DeviceRepr, DevicePtr, LaunchAsync, LaunchConfig};
 use cudarc::driver::sys::CUdeviceptr;
-use cudarc::driver::{DevicePtr, DeviceRepr, LaunchAsync, LaunchConfig};
 use cudarc::nvrtc::Ptx;
 use std::cmp::min;
 use std::time::Instant;
@@ -22,21 +22,21 @@ unsafe impl DeviceRepr for LocMapComponentDevice {}
 
 #[repr(C)]
 struct GardenDevice {
-    seed_input: CUdeviceptr, // pointer of Vec<u32>
+    seed_input: CUdeviceptr,  // pointer of Vec<u32>
     seed_input_size: u32,
-    seed_to_soil: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    seed_to_soil: CUdeviceptr,  // pointer of Vec<LocMapComponentDevice>
     seed_to_soil_size: u32,
-    soil_to_fertilizer: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    soil_to_fertilizer: CUdeviceptr,  // pointer of Vec<LocMapComponentDevice>
     soil_to_fertilizer_size: u32,
-    fertilizer_to_water: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    fertilizer_to_water: CUdeviceptr,  // pointer of Vec<LocMapComponentDevice>
     fertilizer_to_water_size: u32,
-    water_to_light: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    water_to_light: CUdeviceptr,  // pointer of Vec<LocMapComponentDevice>
     water_to_light_size: u32,
-    light_to_temperature: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    light_to_temperature: CUdeviceptr,  // pointer of Vec<LocMapComponentDevice>
     light_to_temperature_size: u32,
-    temperature_to_humidity: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    temperature_to_humidity: CUdeviceptr,  // pointer of Vec<LocMapComponentDevice>
     temperature_to_humidity_size: u32,
-    humidity_to_location: CUdeviceptr, // pointer of Vec<LocMapComponentDevice>
+    humidity_to_location: CUdeviceptr,  // pointer of Vec<LocMapComponentDevice>
     humidity_to_location_size: u32,
 }
 
@@ -67,19 +67,18 @@ pub fn solve() {
     for i in (0..seed_input.len()).step_by(2) {
         n += seed_input[i + 1]
     }
-    let batches: u32 = min(96_000_000, n).try_into().unwrap();
-    let batch_size: u32 = (n / batches as u32).try_into().unwrap();
 
-    let cfg = LaunchConfig::for_num_elems(batches.try_into().unwrap());
+    let cfg = LaunchConfig::for_num_elems(n.try_into().unwrap());
     let cfg = LaunchConfig {
         grid_dim: cfg.grid_dim,
         block_dim: cfg.block_dim,
-        shared_mem_bytes: cfg.block_dim.0 * 4, // one u32 for each thread in the block
+        shared_mem_bytes: 0,  // one u32 for each thread in the block
     };
 
+
     println!(
-        "n: {:?}, batches: {:?}, batch_size: {:?}, cuda config: {:?}",
-        n, batches, batch_size, &cfg
+        "n: {:?}, cuda config: {:?}",
+        n, &cfg
     );
 
     let seed_to_soil = locmap_to_c_repr(garden.seed_to_soil);
@@ -131,7 +130,7 @@ pub fn solve() {
     let calc_dest_min_kernel = dev.get_func("aoc", "calc_dest_min").unwrap();
 
     let start = Instant::now();
-    unsafe { calc_dest_min_kernel.launch(cfg, (&mut d_out_local_mins, d_garden, batch_size, n)) }
+    unsafe { calc_dest_min_kernel.launch(cfg, (&mut d_out_local_mins, d_garden, n)) }
         .unwrap();
 
     let min = dev

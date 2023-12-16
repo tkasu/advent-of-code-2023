@@ -63,33 +63,27 @@ unsigned int get_next_loc(
 extern "C" __global__ void calc_dest_min(
     unsigned int *local_mins,
     const Garden garden,
-    const int batch_size,
     const unsigned int n
 ) {
-    int batch_idx = blockIdx.x * blockDim.x + threadIdx.x;
-
-    extern __shared__ unsigned int block_mins[];
-
-    unsigned int min_loc = UINT_MAX;
-    for (int i = 0; i < batch_size; i++) {
-        unsigned int seed_idx = i + batch_idx * batch_size;
-        if (seed_idx >= n) {
-            return;
-        }
-        unsigned int seed = get_seed(garden.seed_input, garden.seed_input_size, seed_idx);
-        unsigned int next_loc = seed;
-
-        next_loc = get_next_loc(next_loc, garden.seed_to_soil, garden.seed_to_soil_size);
-        next_loc = get_next_loc(next_loc, garden.soil_to_fertilizer, garden.soil_to_fertilizer_size);
-        next_loc = get_next_loc(next_loc, garden.fertilizer_to_water, garden.fertilizer_to_water_size);
-        next_loc = get_next_loc(next_loc, garden.water_to_light, garden.water_to_light_size);
-        next_loc = get_next_loc(next_loc, garden.light_to_temperature, garden.light_to_temperature_size);
-        next_loc = get_next_loc(next_loc, garden.temperature_to_humidity, garden.temperature_to_humidity_size);
-        next_loc = get_next_loc(next_loc, garden.humidity_to_location, garden.humidity_to_location_size);
-        min_loc = min(min_loc, next_loc);
+    int seed_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (seed_idx >= n) {
+        return;
     }
 
-    block_mins[threadIdx.x] = min_loc;
+    __shared__ unsigned int block_mins[1024];
+
+    unsigned int seed = get_seed(garden.seed_input, garden.seed_input_size, seed_idx);
+
+    unsigned int next_loc = seed;
+    next_loc = get_next_loc(next_loc, garden.seed_to_soil, garden.seed_to_soil_size);
+    next_loc = get_next_loc(next_loc, garden.soil_to_fertilizer, garden.soil_to_fertilizer_size);
+    next_loc = get_next_loc(next_loc, garden.fertilizer_to_water, garden.fertilizer_to_water_size);
+    next_loc = get_next_loc(next_loc, garden.water_to_light, garden.water_to_light_size);
+    next_loc = get_next_loc(next_loc, garden.light_to_temperature, garden.light_to_temperature_size);
+    next_loc = get_next_loc(next_loc, garden.temperature_to_humidity, garden.temperature_to_humidity_size);
+    next_loc = get_next_loc(next_loc, garden.humidity_to_location, garden.humidity_to_location_size);
+
+    block_mins[threadIdx.x] = next_loc;
 
     __syncthreads();
     unsigned int block_min = UINT_MAX;
